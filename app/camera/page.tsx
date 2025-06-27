@@ -174,7 +174,7 @@ export default function CameraPage() {
   }
 
   // State global (opsional bisa pakai React useRef/useState juga)
-  let savedPort: SerialPort | any = null;
+  let savedPort: any = null;
 
   const sendToSerialPorts = async (hasValidSize: boolean) => {
     try {
@@ -207,9 +207,8 @@ export default function CameraPage() {
         parity: "none",
       });
 
-      // Contoh JSON: { "0": 116, "1": 114, "2": 117, "3": 101 }
       const messageObject = hasValidSize
-        ? { "0": 116, "1": 114, "2": 117, "3": 101 } // "true"
+        ? { "0": 116, "1": 114, "2": 117, "3": 101 }     // "true"
         : { "0": 102, "1": 97, "2": 108, "3": 115, "4": 101 }; // "false"
       const message = JSON.stringify(messageObject) + "\n";
 
@@ -227,25 +226,30 @@ export default function CameraPage() {
 
       let arduinoResponse = "";
       let done = false;
+      const timeoutMs = 3000;
+      const startTime = Date.now();
 
-      while (!done) {
+      while (!done && Date.now() - startTime < timeoutMs) {
         const { value, done: isDone } = await reader.read();
         if (value) {
           arduinoResponse += value;
 
-          if (arduinoResponse.includes("[ECHO]:")) {
-            done = true;
+          const lines = arduinoResponse.split("\n");
+          for (const line of lines) {
+            if (line.includes("[ECHO]:")) {
+              const echoedValue = line.split("[ECHO]:")[1]?.trim();
+              console.log("Arduino echoed back:", echoedValue);
+              done = true;
+              break;
+            }
           }
         }
       }
 
-      const echoedValue = arduinoResponse.split("[ECHO]:")[1]?.trim();
-      console.log("Arduino echoed back:", echoedValue);
-
       await reader.cancel();
       await readableStreamClosed.catch(() => {});
 
-      // Tutup port setelah delay
+      // Optional: close port
       setTimeout(async () => {
         try {
           await savedPort?.close();
