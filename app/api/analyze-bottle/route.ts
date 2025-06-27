@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    const prompt = `if its a plastic bottle mineral water, i want you to measure this plastic bottle mineral water size in ml, if it something else, then stop and there is a message "Jangan masukkan {object}, hanya botol mineral plastik". If its plastic bottle mineral water, just respon with "Botol Plastik Air Mineral" {size}`
+    const prompt = `if its a plastic bottle, i want you to measure this plastic bottle size in ml, if it something else, then stop and there is a message "Jangan masukkan {object}, hanya botol plastik". If its plastic bottle, just respon with "Botol Plastik Air Mineral" {size}`
 
     const result = await model.generateContent([
       {
