@@ -226,7 +226,7 @@ export default function CameraPage() {
       writer.releaseLock();
 
       setSerialStatus(`Message sent: ${hasValidSize ? "true" : "false"}`);
-      console.log(`${hasValidSize}`)
+      console.log(encoder.encode(message))
 
       // Optional: close after short delay
       setTimeout(async () => {
