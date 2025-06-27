@@ -170,14 +170,11 @@ export default function CameraPage() {
   }
 
   interface NavigatorWithSerial extends Navigator {
-    serial: {
-      requestPort: () => Promise<SerialPort>;
-      getPorts: () => Promise<SerialPort[]>;
-    };
+  serial: any;
   }
 
   // State global (opsional bisa pakai React useRef/useState juga)
-  let savedPort: SerialPort | null = null;
+  let savedPort: SerialPort | any = null;
 
   const sendToSerialPorts = async (hasValidSize: boolean) => {
     try {
@@ -185,11 +182,8 @@ export default function CameraPage() {
 
       if (!("serial" in nav)) {
         console.log("Web Serial API not supported");
-        setSerialStatus("Serial API not supported");
         return;
       }
-
-      setSerialStatus("Checking available serial ports...");
 
       if (!savedPort) {
         const ports = await nav.serial.getPorts();
@@ -197,16 +191,15 @@ export default function CameraPage() {
           savedPort = ports[0];
           console.log("Using previously granted port.");
         } else {
-          setSerialStatus("Requesting access to serial port...");
           savedPort = await nav.serial.requestPort();
           if (!savedPort) {
-            setSerialStatus("No port selected");
+            console.log("No port selected");
             return;
           }
         }
       }
 
-      setSerialStatus("Opening serial port...");
+      console.log("Opening serial port...");
       await savedPort.open({
         baudRate: 9600,
         dataBits: 8,
@@ -214,37 +207,59 @@ export default function CameraPage() {
         parity: "none",
       });
 
-      setSerialStatus(
-        `Sending ${hasValidSize ? "true" : "false"} to serial port...`
-      );
+      // Contoh JSON: { "0": 116, "1": 114, "2": 117, "3": 101 }
+      const messageObject = hasValidSize
+        ? { "0": 116, "1": 114, "2": 117, "3": 101 } // "true"
+        : { "0": 102, "1": 97, "2": 108, "3": 115, "4": 101 }; // "false"
+      const message = JSON.stringify(messageObject) + "\n";
 
-      const writer = savedPort.writable.getWriter();
+      console.log("Sending:", message);
+
       const encoder = new TextEncoder();
-      const message = `${hasValidSize}\n`;
-
+      const writer = savedPort.writable.getWriter();
       await writer.write(encoder.encode(message));
       writer.releaseLock();
 
-      setSerialStatus(`Message sent: ${hasValidSize ? "true" : "false"}`);
-      console.log(encoder.encode(message))
+      // Baca balasan dari Arduino
+      const textDecoder = new TextDecoderStream();
+      const readableStreamClosed = savedPort.readable.pipeTo(textDecoder.writable);
+      const reader = textDecoder.readable.getReader();
 
-      // Optional: close after short delay
+      let arduinoResponse = "";
+      let done = false;
+
+      while (!done) {
+        const { value, done: isDone } = await reader.read();
+        if (value) {
+          arduinoResponse += value;
+
+          if (arduinoResponse.includes("[ECHO]:")) {
+            done = true;
+          }
+        }
+      }
+
+      const echoedValue = arduinoResponse.split("[ECHO]:")[1]?.trim();
+      console.log("Arduino echoed back:", echoedValue);
+
+      await reader.cancel();
+      await readableStreamClosed.catch(() => {});
+
+      // Tutup port setelah delay
       setTimeout(async () => {
         try {
           await savedPort?.close();
-          setSerialStatus("Serial port closed");
-          savedPort = null; // Reset if you want to re-request next time
+          console.log("Serial port closed");
+          savedPort = null;
         } catch (error) {
           console.error("Error closing serial port:", error);
         }
       }, 10000);
     } catch (error: any) {
       console.error("Serial port error:", error);
-      setSerialStatus(`Serial error: ${error.message}`);
       savedPort = null;
     }
   };
-
 
 
 
