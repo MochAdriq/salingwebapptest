@@ -236,7 +236,7 @@ export default function CameraPage() {
         } catch (error) {
           console.error("Error closing serial port:", error);
         }
-      }, 1000);
+      }, 10000);
     } catch (error: any) {
       console.error("Serial port error:", error);
       setSerialStatus(`Serial error: ${error.message}`);
