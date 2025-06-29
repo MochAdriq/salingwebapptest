@@ -1,14 +1,14 @@
-import { GoogleGenerativeAI } from "@google/generative-ai"
-import { type NextRequest, NextResponse } from "next/server"
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { type NextRequest, NextResponse } from "next/server";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function POST(request: NextRequest) {
   try {
-    const { imageData } = await request.json()
+    const { imageData } = await request.json();
 
     // Remove data URL prefix to get base64 data
-    const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, "")
+    const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, "");
 
     const model = genAI.getGenerativeModel({
       model: "gemini-2.0-flash",
@@ -26,9 +26,9 @@ export async function POST(request: NextRequest) {
           },
         },
       },
-    })
+    });
 
-    const prompt = `if its a plastic bottle, i want you to measure this plastic bottle size in ml, if it something else, then stop and there is a message "Jangan masukkan {object}, hanya botol plastik". If its plastic bottle, just respon with "Botol Plastik Air Mineral" {size}`
+    const prompt = `if its a plastic bottle, i want you to measure this plastic bottle size in ml, if it something else, then stop and there is a message "Jangan masukkan {object}, hanya botol plastik". If its plastic bottle, just respon with "Botol Plastik Air Mineral" {size}`;
 
     const result = await model.generateContent([
       {
@@ -40,15 +40,18 @@ export async function POST(request: NextRequest) {
           mimeType: "image/jpeg",
         },
       },
-    ])
+    ]);
 
-    const response = await result.response
-    const text = response.text()
-    const parsedResult = JSON.parse(text)
+    const response = await result.response;
+    const text = response.text();
+    const parsedResult = JSON.parse(text);
 
-    return NextResponse.json(parsedResult)
+    return NextResponse.json(parsedResult);
   } catch (error) {
-    console.error("Error analyzing bottle:", error)
-    return NextResponse.json({ error: "Failed to analyze bottle" }, { status: 500 })
+    console.error("Error analyzing bottle:", error);
+    return NextResponse.json(
+      { error: "Failed to analyze bottle" },
+      { status: 500 }
+    );
   }
 }

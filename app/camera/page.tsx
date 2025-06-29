@@ -170,7 +170,7 @@ export default function CameraPage() {
   }
 
   interface NavigatorWithSerial extends Navigator {
-  serial: any;
+    serial: any;
   }
 
   // State global (opsional bisa pakai React useRef/useState juga)
@@ -208,7 +208,7 @@ export default function CameraPage() {
       });
 
       const messageObject = hasValidSize
-        ? { "0": 116, "1": 114, "2": 117, "3": 101 }     // "true"
+        ? { "0": 116, "1": 114, "2": 117, "3": 101 } // "true"
         : { "0": 102, "1": 97, "2": 108, "3": 115, "4": 101 }; // "false"
       const message = JSON.stringify(messageObject) + "\n";
 
@@ -219,21 +219,25 @@ export default function CameraPage() {
       await writer.write(encoder.encode(message));
       writer.releaseLock();
 
-      // Baca balasan dari Arduino
+      // --- Baca balasan dari Arduino (dengan timeout, aman) ---
       const textDecoder = new TextDecoderStream();
-      const readableStreamClosed = savedPort.readable.pipeTo(textDecoder.writable);
+      const readableStreamClosed = savedPort.readable.pipeTo(
+        textDecoder.writable
+      );
       const reader = textDecoder.readable.getReader();
 
       let arduinoResponse = "";
       let done = false;
-      const timeoutMs = 3000;
+      const timeoutMs = 3000; // 3 detik saja, supaya tidak freeze
       const startTime = Date.now();
 
       while (!done && Date.now() - startTime < timeoutMs) {
         const { value, done: isDone } = await reader.read();
         if (value) {
           arduinoResponse += value;
+          console.log("Arduino:", value); // Log tiap data masuk
 
+          // Contoh: jika Arduino mengirim [ECHO]:..., bisa break
           const lines = arduinoResponse.split("\n");
           for (const line of lines) {
             if (line.includes("[ECHO]:")) {
@@ -244,12 +248,13 @@ export default function CameraPage() {
             }
           }
         }
+        if (isDone) break;
       }
 
       await reader.cancel();
       await readableStreamClosed.catch(() => {});
 
-      // Optional: close port
+      // Optional: close port otomatis setelah 10 detik
       setTimeout(async () => {
         try {
           await savedPort?.close();
@@ -264,9 +269,6 @@ export default function CameraPage() {
       savedPort = null;
     }
   };
-
-
-
 
   const captureImage = async () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -473,6 +475,17 @@ export default function CameraPage() {
       await enterFullscreen();
     }
   };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+    if (value) {
+      console.log("Arduino:", value); // tampilkan di console browser
+      // Atau tampilkan ke halaman HTML sesuai kebutuhan
+    }
+  }
 
   // Success Screen Component
   if (showSuccessScreen) {
